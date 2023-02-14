@@ -19,7 +19,7 @@ pipeline {
         sh 'mvn -Dmaven.test.failure.ignore=true clean package'
       }
     }
-    stage('Target Workload) {
+    stage('Target Workload') {
           steps {
             echo 'Target Workload'
             sshPublisher(publishers: [sshPublisherDesc(configName: 'target', 
