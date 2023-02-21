@@ -12,4 +12,6 @@ aws ecr get-login-password --region ${REGION} \
 
 export IMAGE=${ECR_DOCKER_IMAGE};
 export TAG=${ECR_DOCKER_TAG};
+sudo chown ubuntu.ubuntu -R /home/ubuntu/scripts
+sudo chown ubuntu.ubuntu -R /home/ubuntu/docker-compose.yml
 docker-compose -f /home/ubuntu/docker-compose.yml up -d --build;
