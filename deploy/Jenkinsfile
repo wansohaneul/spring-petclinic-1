@@ -8,7 +8,7 @@ pipeline {
     environment {
         AWS_CREDENTIAL_NAME = "AWSCredentials"
         REGION = "ap-northeast-2"
-        DOCKER_IMAGE_NAME="std00-spring-petclinic"
+        DOCKER_IMAGE_NAME="project03-spring-petclinic"
         DOCKER_TAG="1.0"
         ECR_REPOSITORY = "${params.AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com"
         ECR_DOCKER_IMAGE = "${ECR_REPOSITORY}/${DOCKER_IMAGE_NAME}"
@@ -72,6 +72,23 @@ pipeline {
                     echo "Push Docker Image success!"
                 }
             }
+        }
+        stage('Upload to S3') {
+            steps {
+                echo "Upload to S3"
+                zip -r deploy-1.0.zip ./scripts appspec.yml
+                aws s3 cp --region ap-northeast-2 --acl private ./deploy-1.0.zip s3://project00-codeproject
+            }
+        }
+        stage('Codedeploy Workload') {
+            steps {
+                echo "Codedeploy Workload"   
+                sh '''
+                    aws deploy create-deployment --application-name project00-codedeploy \
+                    --deployment-config-name CodeDeployDefault.OneAtATime \
+                    --deployment-group-name project00-codedeploy-workload \
+                    --s3-location bucket=project00-codedeploy,bundleType=zip,key=deploy-1.0.zip
+                    '''
         }
     }
 }
