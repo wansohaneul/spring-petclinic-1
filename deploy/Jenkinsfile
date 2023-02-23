@@ -80,16 +80,44 @@ pipeline {
                 sh 'aws s3 cp --region ap-northeast-2 --acl private ./deploy-1.0.zip s3://project00-codedeploy'
             }
         }
-        stage('Codedeploy Workload') {
-            steps {
-                echo "Codedeploy Workload"   
-                sh '''
-                    aws deploy create-deployment --application-name project00-codedeploy \
-                    --deployment-config-name CodeDeployDefault.OneAtATime \
-                    --deployment-group-name project00-codedeploy-workload \
-                    --s3-location bucket=project00-codedeploy,bundleType=zip,key=deploy-1.0.zip
-                    '''
+                
+        stage('============ Deploy workload ============') {
+        when { expression { return params.DEPLOY_WORKLOAD } }
+        agent { label 'master' }
+        steps {
+            echo "Run CodeDeploy with creating deployment"
+            script {
+                sh'''
+                    aws deploy create-deployment \
+                        --application-name project00-codedeploy \
+                        --deployment-group-name project00-codedeploy-workload \
+                        --region ${REGION} \
+                        --s3-location bucket=project00-codedeploy,bundleType=zip,key=deploy-1.0.zip \
+                        --file-exists-behavior OVERWRITE \
+                        --output json > DEPLOYMENT_ID.json
+                '''
+                def DEPLOYMENT_ID = sh(script: "cat DEPLOYMENT_ID.json | grep -o '\"deploymentId\": \"[^\"]*' | cut -d'\"' -f4", returnStdout: true).trim()
+                echo "$DEPLOYMENT_ID"
+                sh "rm -rf ./DEPLOYMENT_ID.json"
+                def DEPLOYMENT_RESULT = ""
+                while("$DEPLOYMENT_RESULT" != "\"Succeeded\"") {
+                    DEPLOYMENT_RESULT = sh(
+                        script:"aws deploy get-deployment \
+                                    --region ${REGION} \
+                                    --query \"deploymentInfo.status\" \
+                                    --deployment-id ${DEPLOYMENT_ID}",
+                        returnStdout: true
+                    ).trim()
+                    echo "$DEPLOYMENT_RESULT"
+                    if ("$DEPLOYMENT_RESULT" == "\"Failed\"") {
+                        currentBuild.result = 'FAILURE'
+                        break
+                    }
+                    sleep(10) // sleep 10s
+                }
+                currentBuild.result = 'SUCCESS'
             }
         }
+        
     }
 }
